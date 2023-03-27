@@ -27,16 +27,16 @@ You can install __httpntlm__ using the Node Package Manager (npm):
 var httpntlm = require('httpntlm');
 
 httpntlm.get({
-    url: "https://someurl.com",
-    username: 'm$',
-    password: 'stinks',
-    workstation: 'choose.something',
-    domain: ''
+  url: "https://someurl.com",
+  username: 'm$',
+  password: 'stinks',
+  workstation: 'choose.something',
+  domain: ''
 }, function (err, res){
-    if(err) return console.log(err);
+  if(err) return console.log(err);
 
-    console.log(res.headers);
-    console.log(res.body);
+  console.log(res.headers);
+  console.log(res.body);
 });
 ```
 
@@ -44,7 +44,6 @@ It supports __http__ and __https__.
 
 ## pre-encrypt the password
 ```js
-
 var httpntlm = require('httpntlm');
 var ntlm = httpntlm.ntlm;
 var lm = ntlm.create_LM_hashed_password('Azx123456');
@@ -61,17 +60,17 @@ console.log(nt);
 
 
 httpntlm.get({
-    url: "https://someurl.com",
-    username: 'm$',
-    lm_password: lm,
-    nt_password: nt,
-    workstation: 'choose.something',
-    domain: ''
+  url: "https://someurl.com",
+  username: 'm$',
+  lm_password: lm,
+  nt_password: nt,
+  workstation: 'choose.something',
+  domain: ''
 }, function (err, res){
-    if(err) return console.log(err);
+  if(err) return console.log(err);
 
-    console.log(res.headers);
-    console.log(res.body);
+  console.log(res.headers);
+  console.log(res.body);
 });
 
 /* you can save the array into your code and use it when you need it
@@ -91,10 +90,12 @@ httpntlm.get({
 ## Options
 
 - `url:`      _{String}_   URL to connect. (Required)
-- `username:` _{String}_   Username. (Required)
-- `password:` _{String}_   Password. (Required)
-- `workstation:` _{String}_ Name of workstation or `''`.
-- `domain:`   _{String}_   Name of domain or `''`.
+- `username:` _{String}_   Username (optional, default: '')
+- `password:` _{String}_   Password (optional, default: '')
+- `workstation:` _{String}_ Name of workstation (optional, default: '')
+- `domain:`   _{String}_   Name of domain (optional, default: '')
+- `agent:`   _{Agent}_   In case you want to reuse the keepaliveAgent over different calls (optional)
+- `headers:`   _{Object}_   Add in custom headers. The following headers are used by NTLM and cannot be passed: `Connection`, `Authorization` (optional)
 
 if you already got the encrypted password,you should use this two param to replace the 'password' param.
 
@@ -122,70 +123,90 @@ var HttpsAgent = require('agentkeepalive').HttpsAgent;
 var keepaliveAgent = new HttpsAgent();
 
 var options = {
-    url: "https://someurl.com",
-    username: 'm$',
-    password: 'stinks',
-    workstation: 'choose.something',
-    domain: ''
+  url: "https://someurl.com",
+  username: 'm$',
+  password: 'stinks',
+  workstation: 'choose.something',
+  domain: ''
 };
 
 async.waterfall([
-    function (callback){
-        var type1msg = ntlm.createType1Message(options);
+  function (callback){
+    var type1msg = ntlm.createType1Message(options);
 
-        httpreq.get(options.url, {
-            headers:{
-                'Connection' : 'keep-alive',
-                'Authorization': type1msg
-            },
-            agent: keepaliveAgent
-        }, callback);
-    },
+    httpreq.get(options.url, {
+      headers:{
+        'Connection' : 'keep-alive',
+        'Authorization': type1msg
+      },
+      agent: keepaliveAgent
+    }, callback);
+  },
 
-    function (res, callback){
-        if(!res.headers['www-authenticate'])
-            return callback(new Error('www-authenticate not found on response of second request'));
+  function (res, callback){
+    if(!res.headers['www-authenticate'])
+      return callback(new Error('www-authenticate not found on response of second request'));
 
-        var type2msg = ntlm.parseType2Message(res.headers['www-authenticate']);
-        var type3msg = ntlm.createType3Message(type2msg, options);
+    var type2msg = ntlm.parseType2Message(res.headers['www-authenticate']);
+    var type3msg = ntlm.createType3Message(type2msg, options);
 
-        setImmediate(function() {
-            httpreq.get(options.url, {
-                headers:{
-                    'Connection' : 'Close',
-                    'Authorization': type3msg
-                },
-                allowRedirects: false,
-                agent: keepaliveAgent
-            }, callback);
-        });
-    }
+    setImmediate(function() {
+      httpreq.get(options.url, {
+        headers:{
+          'Connection' : 'Close',
+          'Authorization': type3msg
+        },
+        allowRedirects: false,
+        agent: keepaliveAgent
+      }, callback);
+    });
+  }
 ], function (err, res) {
-    if(err) return console.log(err);
+  if(err) return console.log(err);
 
-    console.log(res.headers);
-    console.log(res.body);
+  console.log(res.headers);
+  console.log(res.body);
 });
 ```
 
 ## Download binary files
 
-```javascript
+```js
 httpntlm.get({
-    url: "https://someurl.com/file.xls",
-    username: 'm$',
-    password: 'stinks',
-    workstation: 'choose.something',
-    domain: '',
-    binary: true
+  url: "https://someurl.com/file.xls",
+  username: 'm$',
+  password: 'stinks',
+  workstation: 'choose.something',
+  domain: '',
+  binary: true
 }, function (err, response) {
-    if(err) return console.log(err);
-    fs.writeFile("file.xls", response.body, function (err) {
-        if(err) return console.log("error writing file");
-        console.log("file.xls saved!");
-    });
+  if(err) return console.log(err);
+  fs.writeFile("file.xls", response.body, function (err) {
+    if(err) return console.log("error writing file");
+    console.log("file.xls saved!");
+  });
 });
 ```
+
+## Pass in custom headers
+
+```js
+httpntlm.get({
+  url: "http://localhost:3000",
+  username: 'm$',
+  password: 'stinks',
+  workstation: 'choose.something',
+  domain: 'somedomain',
+  headers: {
+    'User-Agent': 'my-useragent'
+  }
+}, function (err, res){
+  if(err) return console.log(err);
+
+  console.log(res.headers);
+  console.log(res.body);
+});
+````
 
 ## More information
 
@@ -197,11 +218,19 @@ httpntlm.get({
 
 Running tests in an open source package is crucial for ensuring the quality and reliability of the codebase. When you submit code changes, it's essential to ensure that these changes don't break existing functionality or introduce new bugs.
 
-To run the tests, simply run
+To run the unit tests, simply run
 
-    node test.js
+    node ./tests/unittests.js
 
 All tests should return `true`
+
+To run the integration tests, first start the NTLM server with
+
+    node ./tests/integrationtests-server.js
+
+Next, run the integration tests with:
+
+    node ./tests/integrationtests.js
 
 
 ## License (MIT)
